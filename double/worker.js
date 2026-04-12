@@ -1,11 +1,11 @@
-// VERSION: 2.0.1
-// 🟢 面板核心配置区
-const CURRENT_VERSION = "2.0.1";
+// VERSION: 2.0.2
+// 🟢 面板核心配置区 (放在最顶端方便修改)
+const CURRENT_VERSION = "2.0.2"; 
 const GITHUB_RAW_URL = "https://raw.githubusercontent.com/MakkaPakka518/Update-EmbyProxy/refs/heads/main/double/worker.js";
 
 
-// ==========================================
-// 1. 网页界面-双面板
+// =========================================
+// 1. 网页界面-双播报版本
 // ==========================================
 
 const SVG_EYE = `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
@@ -1627,26 +1627,29 @@ const HTML_UI = `
                 btn.disabled = false;
                 btn.style.opacity = '1';
             }
-        } 
-    // ==========================================
-        // 🟢 在线更新检测与执行逻辑
+        }  
         // ==========================================
-        const CURRENT_VERSION_JS = "${CURRENT_VERSION}"; 
-        const GITHUB_RAW_URL_JS = "${GITHUB_RAW_URL}"; 
+        // 🟢 在线更新模块
+        // ==========================================
+        // 这里的变量会自动从代码最顶端的配置区读取注入
+        const CURRENT_VERSION = "${CURRENT_VERSION}"; 
+        const GITHUB_RAW_URL = "${GITHUB_RAW_URL}"; 
+        
         let latestCode = ""; 
 
         async function checkForUpdates() {
             try {
-                const res = await fetch(GITHUB_RAW_URL_JS + '?t=' + new Date().getTime());
+                const res = await fetch(GITHUB_RAW_URL + '?t=' + new Date().getTime());
                 if (!res.ok) return;
                 latestCode = await res.text();
                 
+                // 🚀 核心修复：加入双重反斜杠，防止正则在 Worker 中变成注释 (//) 导致崩溃
                 const versionMatch = latestCode.match(/\\/\\/\\s*VERSION:\\s*v?([\\d\\.]+)/i);
                 if (versionMatch && versionMatch[1]) {
                     const latestVersion = versionMatch[1];
-                    if (latestVersion !== CURRENT_VERSION_JS) {
+                    if (latestVersion !== CURRENT_VERSION) {
                         document.getElementById('updateAlert').style.display = 'block';
-                        document.getElementById('updateMsg').innerText = '当前版本: v' + CURRENT_VERSION_JS + ' | 发现最新版本: v' + latestVersion + ' (Github)';
+                        document.getElementById('updateMsg').innerText = '当前版本: v' + CURRENT_VERSION + ' | 发现最新版本: v' + latestVersion + ' (Github)';
                     }
                 }
             } catch (e) {
@@ -1663,6 +1666,7 @@ const HTML_UI = `
             btn.style.opacity = '0.7';
 
             try {
+                // 直接复用我们之前写好的防丢数据库高级 API
                 const res = await fetch('/api/deploy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1684,7 +1688,8 @@ const HTML_UI = `
             }
         }
 
-        document.addEventListener('DOMContentLoaded', checkForUpdates);             
+        // 页面加载完成后自动在后台静默检测更新
+        document.addEventListener('DOMContentLoaded', checkForUpdates);            
     </script>
 </body>
 </html>
