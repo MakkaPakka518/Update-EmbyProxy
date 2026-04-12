@@ -1,7 +1,7 @@
 // VERSION: 2.0.2
 // 🟢 面板核心配置区 (放在最顶端方便修改)
 const CURRENT_VERSION = "2.0.2"; 
-const GITHUB_RAW_URL = "https://raw.githubusercontent.com/MakkaPakka518/Update-EmbyProxy/refs/heads/main/single/worker1.js";
+const GITHUB_RAW_URL = "https://raw.githubusercontent.com/MakkaPakka518/Update-EmbyProxy/refs/heads/main/single/worker.js";
 
 // ==========================================
 // 1. 网页界面-单播报版本
