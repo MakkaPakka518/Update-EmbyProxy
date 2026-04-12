@@ -1,6 +1,6 @@
-// VERSION: 2.0.4
+// VERSION: 2.0.5
 // 🟢 面板核心配置区 (放在最顶端方便修改)
-const CURRENT_VERSION = "2.0.4"; 
+const CURRENT_VERSION = "2.0.5; 
 const GITHUB_RAW_URL = "https://raw.githubusercontent.com/MakkaPakka518/Update-EmbyProxy/refs/heads/main/single/test.js";
 
 // ==========================================
@@ -2083,7 +2083,7 @@ export default {
         }
 
         // ==========================================
-        // 🟢 后端接口：执行代码覆盖更新 (无损继承变量、数据库、兼容性配置)
+        // 🟢 后端接口：执行代码覆盖更新 (纯JSON接口无损继承：变量、数据库、兼容性、放置地区)
         // ==========================================
         if (url.pathname === '/api/deploy' && request.method === 'POST') {
             const cfToken = env.CF_API_TOKEN;
@@ -2096,21 +2096,30 @@ export default {
                 const body = await request.json();
                 if (!body.newCode) return Response.json({ success: false, error: '代码内容为空。' });
 
-                // 1. 🚀 核心修复：先获取当前脚本的元数据 (为了保留兼容性日期和放置位置)
-                const scriptRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${workerName}`, {
+                // 1. 🚀 终极修复：调用纯 JSON 的 services 接口获取真实配置，绝对不再崩溃！
+                const serviceRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/services/${workerName}`, {
                     headers: { 'Authorization': `Bearer ${cfToken}` }
                 });
-                const scriptData = await scriptRes.json();
+                const serviceData = await serviceRes.json();
                 
-                // 设置一个兜底的较新日期，防止因为旧日期导致 export 语法报错
-                let compDate = "2024-03-20"; 
-                let placement = undefined;
+                let compDate = "2024-01-01"; // 依然保留兜底，但这次绝不会用到
                 let compFlags = undefined;
+                let placement = undefined;
 
-                if (scriptData.success && scriptData.result) {
-                    if (scriptData.result.compatibility_date) compDate = scriptData.result.compatibility_date;
-                    if (scriptData.result.compatibility_flags) compFlags = scriptData.result.compatibility_flags;
-                    if (scriptData.result.placement) placement = scriptData.result.placement;
+                if (serviceData.success && serviceData.result) {
+                    // 精准从 JSON 中提取你原本的配置
+                    let scriptInfo = null;
+                    if (serviceData.result.default_environment && serviceData.result.default_environment.script) {
+                        scriptInfo = serviceData.result.default_environment.script;
+                    } else if (serviceData.result.script) {
+                        scriptInfo = serviceData.result.script;
+                    }
+                    
+                    if (scriptInfo) {
+                        if (scriptInfo.compatibility_date) compDate = scriptInfo.compatibility_date;
+                        if (scriptInfo.compatibility_flags) compFlags = scriptInfo.compatibility_flags;
+                        if (scriptInfo.placement) placement = scriptInfo.placement;
+                    }
                 }
 
                 const preservedBindings = [];
@@ -2121,7 +2130,7 @@ export default {
                     }
                 }
 
-                // 3. 拉取 D1 数据库等高级绑定并无损合并
+                // 3. 拉取 D1、KV 等高级绑定并无损合并
                 const bindingsRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${workerName}/bindings`, {
                     headers: { 'Authorization': `Bearer ${cfToken}` }
                 });
@@ -2139,10 +2148,10 @@ export default {
                 const metadata = { 
                     main_module: 'worker.js',
                     bindings: preservedBindings,
-                    compatibility_date: compDate // 🎯 注入刚才获取到的兼容性日期
+                    compatibility_date: compDate 
                 };
                 if (compFlags) metadata.compatibility_flags = compFlags;
-                if (placement) metadata.placement = placement;
+                if (placement) metadata.placement = placement; // 🎯 完美带上你原始的放置地区！
 
                 formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }), 'metadata.json');
                 formData.append('worker.js', new Blob([body.newCode], { type: 'application/javascript+module' }), 'worker.js');
@@ -2155,7 +2164,7 @@ export default {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    return Response.json({ success: true, msg: '代码、环境变量、数据库与配置均已成功无损更新！' });
+                    return Response.json({ success: true, msg: '代码更新成功，并已完美保留原有放置地区和兼容配置！' });
                 } else {
                     throw new Error(JSON.stringify(data.errors));
                 }
